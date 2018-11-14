@@ -49,7 +49,7 @@ cc.Class({
         this.adviceCard = this.selfMahjongLayout.getChildByName("adViceCard");
         this.mahjongCardsCount = 10;
         this.selfPlayingMahjongArea = this.node.getChildByName("selfPlayingMahjongArea");
-        this.server = new ClientSocket("192.168.31.162", "9527");
+        this.server = new ClientSocket("localhost", "9527");
         this.server.on("initMahjongCards", this.onRecvInitMahjongCards.bind(this));
     },
 
@@ -116,7 +116,8 @@ cc.Class({
             case "self":
                 playingArea = this.selfPlayingMahjongArea;
                 childNode = cc.instantiate(this.selfPlayingMahjongPrefab);
-                spriteName = "i" + MahjongNode.name;
+                var mahjongNodeName=MahjongNode.name;
+                spriteName = "i" + mahjongNodeName;
                 if (!MahjongNode.isChildOf(this.adviceCard)) {
                     this.selfMahjongLayout.removeChild(MahjongNode);
                     this.lastTouchNode.destroy();
@@ -137,6 +138,7 @@ cc.Class({
                     }
                 }
                 this.updateAdviceCard(null);
+                this.server.talk({msgType:"playingMahjongCard", msgData:mahjongNodeName})
                 break;
             default:
                 break;

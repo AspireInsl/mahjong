@@ -7,11 +7,11 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "string-natural-compare": "2.0.3",//字符串比较库
-    "shuffle": "0.2.2",//麻将牌管理器
     "hashmap": "2.3.0",
-    "ws": "^6.1.0",//websocket服务器
-    "FSM": "1.0.3"//有限状态机
+    "mocha": "^5.2.0",
+    "shuffle": "0.2.2",
+    "string-natural-compare": "2.0.3",
+    "ws": "^6.1.0"
   },
   "author": "",
   "license": "ISC"

@@ -1,5 +1,6 @@
 const EventEmitter = require('events');
 var Shuffle = require('shuffle');
+var FSM = require("./common/finiteStateMachine");
 var mahjongCards = [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9,
     10, 10, 10, 10, 11, 11, 11, 11, 12, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15, 16, 16, 16, 16, 17, 17, 17, 17
 ];
@@ -10,25 +11,78 @@ class mahjongRoom extends EventEmitter {
         this.maxUsers = 3;
         this.users = [];
         this.deck = null;
-        // var card = deck.draw();
-        // var hand = deck.draw(5);
-        // var player1 = [], player2 = [], player3 = [], player4 = [];
-        // deck.deal(5, [player1, player2, player3, player4]);
+        this.currentPlayer=null;
+        this.bankerPos=0;//记录庄家位置
+        this.fsmMachine=new FSM;
+        this.fsmMachine.addStateMethod("waittingForJoin", null);
+        this.fsmMachine.addStateMethod("waittingForReady",this.waitForUserReady.bind(this));
+        this.fsmMachine.addStateMethod("gameStarting",this.startGame.bind(this));
+        this.fsmMachine.addStateMethod("userTouchCard",this.touchCard.bind(this));
+        this.fsmMachine.addStateMethod("waitForUserPlay",this.waitingForUserPlay.bind(this));
+        this.fsmMachine.addTransition("userJoinDone","waittingForReady");
+        this.fsmMachine.addTransition("allUserReady","gameStarting");
+        this.fsmMachine.addTransition("gameStarted","userTouchCard");
+        this.fsmMachine.addTransition("touchCardEnd","waitForUserPlay");
+        this.fsmMachine.addTransition("userPlayEnd","userTouchCard");
+        this.fsmMachine.setInitialState("waittingForJoin");
     }
-
-    addUser(user) {
-        if (this.users.length === this.maxUsers) {
-            return;
+    touchCard(){
+        var card=this.deck.draw(1);
+        this.currentPlayer.addMahjongCard(card);
+        this.currentPlayer.talk({msgType:"touchCard",msgData:card});
+        this.fsmMachine.process("touchCardEnd");
+    }
+    waitForUserReady(){
+        /**
+         * 准备状态检测没有做
+         * 
+         */
+        if(this.checkAllUserIsReady()){
+            this.fsmMachine.process("allUserReady");
         }
+    }
+    waitingForUserPlay(){
+        this.currentPlayer.on("playingMahjongCard",this.onUserPlayCard.bind(this));
+    }
+    onUserPlayCard(data,sender){
+        this.currentPlayer.removeListener("playingMahjongCard",this.onUserPlayCard.bind(this));
+        sendToOtherPlayerMsg(this.currentPlayer,{msgType:"playingMahjongCard",msgData:{userPos:this.currentPlayer.roomPos(),card:data}});
+        this.currentPlayer=this.getNextUser();
+        this.fsmMachine.process("userPlayEnd");
+    }
+    getNextUser(){
+        return this.users[(this.currentPlayer.roomPos() + 1) % 3];
+    }
+    sendToOtherPlayerMsg(user, data){
+        for(var i=0;i<this.users.length;++i){
+            if(i !== user.roomPos()){
+                this.users[i].talk(data);
+            }
+        }
+    }
+    startGame(){
+        this.shuffleCards();
+        var playerCards=[this.deck.draw(10),this.deck.draw(10),this.deck.draw(10)];
+        for(var i=0;i<this.users.length;++i){
+            this.users[i].setHandCards(playerCards[i]);
+            this.users[i].talk({msgType:"initMahjongCards",msgData:playerCards[i]});
+        }
+        this.currentPlayer=this.users[this.bankerPos];
+        this.fsmMachine.process("gameStarted");
+    }
+    checkAllUserIsReady(){
+        for(var i =0 ;i<this.users.length;++i){
+            if(!this.users[i].isReady()){
+                return false;
+            }
+        }
+        return true;
+    }
+    addUser(user) {
+        user.setRoomPos(this.users.length);
         this.users.push(user);
         if (this.users.length === this.maxUsers) {
-            this.shuffleCards();
-            var bankerCards = this.deck.draw(11);
-            var player1 = this.deck.draw(10);
-            var player2 = this.deck.draw(10);
-            this.users[0].talk({msgType:"initMahjongCards",msgData:bankerCards});
-            this.users[1].talk({msgType:"initMahjongCards",msgData:player1});
-            this.users[2].talk({msgType:"initMahjongCards",msgData:player2});
+            this.fsmMachine.process("userJoinDone");
         }
     }
 
@@ -38,7 +92,7 @@ class mahjongRoom extends EventEmitter {
             this.deck.shuffle();
             return;
         }
-        this.deck = Shuffle.shuffle({deck: mahjongCards});
+        this.deck = Shuffle.shuffle({deck: mahjongCards.concat()});
     }
 }
 
