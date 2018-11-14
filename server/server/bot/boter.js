@@ -1,4 +1,5 @@
-var WebSocket=require("ws");
+var WebSocket = require("ws");
+var msgDef = require("../common/def");
 
 class boter {
     constructor(host, port) {
@@ -12,7 +13,18 @@ class boter {
     }
 
     onMessage(data) {
-        console.log("message:", data);
+        data = JSON.parse(data);
+        switch (data.msgType) {
+            case msgDef.touchCard: {
+                this.ws.send(JSON.stringify({
+                    msgType: msgDef.playingMahjongCard,
+                    msgData: data.msgData
+                }));
+            }
+                break;
+            default:
+                break;
+        }
     }
 }
 

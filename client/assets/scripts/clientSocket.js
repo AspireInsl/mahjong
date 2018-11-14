@@ -4,11 +4,11 @@ const EventEmitter = require('events');
 class clientSocket extends EventEmitter {
     constructor(host, port) {
         super();
-        var ws = new WebSocket("ws://" + host + ":" + port);
-        ws.onopen = this.onOpen;
-        ws.onmessage = this.onMessage.bind(this);
-        ws.onerror = this.onError;
-        ws.onclose = this.onClose;
+        this.ws = new WebSocket("ws://" + host + ":" + port);
+        this.ws.onopen = this.onOpen.bind(this);
+        this.ws.onmessage = this.onMessage.bind(this);
+        this.ws.onerror = this.onError.bind(this);
+        this.ws.onclose = this.onClose.bind(this);
     }
 
     onOpen(event) {
@@ -23,10 +23,14 @@ class clientSocket extends EventEmitter {
             console.log(err);
             return;
         }
-        if (!data.msgType || !data.msgData) {
+        if (!data.msgType) {
             return;
         }
         this.emit(data.msgType, data.msgData);
+    }
+
+    talk(data){
+        this.ws.send(JSON.stringify(data));
     }
 
     onError(event) {

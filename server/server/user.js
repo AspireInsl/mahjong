@@ -17,7 +17,8 @@ class user extends EventEmitter {
         this.roomPos=pos;
     }
     onIncoming(data) {
-        this.emit(data.eventName, data.eventData, this);
+        data=JSON.parse(data);
+        this.emit(data.msgType, data.msgData, this);
     }
 
     talk(data) {
